@@ -6,6 +6,7 @@
 #include "../Models/Move.h"
 #include "../Models/Project_path.h"
 
+// Подключение SDL2 и SDL_image в зависимости от ОС
 #ifdef __APPLE__
     #include <SDL2/SDL.h>
     #include <SDL2/SDL_image.h>
@@ -19,19 +20,23 @@ using namespace std;
 class Board
 {
 public:
+    // Конструктор по умолчанию
     Board() = default;
+    // Конструктор с параметрами ширины и высоты доски
     Board(const unsigned int W, const unsigned int H) : W(W), H(H)
     {
     }
 
-    // draws start board
+    // Инициализация и отрисовка начального состояния доски
     int start_draw()
     {
+        // Инициализация SDL
         if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
         {
             print_exception("SDL_Init can't init SDL2 lib");
             return 1;
         }
+        // Если ширина и высота не заданы, получаем их из настроек дисплея
         if (W == 0 || H == 0)
         {
             SDL_DisplayMode dm;
@@ -44,18 +49,21 @@ public:
             W -= W / 15;
             H = W;
         }
+        // Создание окна SDL
         win = SDL_CreateWindow("Checkers", 0, H / 30, W, H, SDL_WINDOW_RESIZABLE);
         if (win == nullptr)
         {
             print_exception("SDL_CreateWindow can't create window");
             return 1;
         }
+        // Создание рендерера
         ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
         if (ren == nullptr)
         {
             print_exception("SDL_CreateRenderer can't create renderer");
             return 1;
         }
+        // Загрузка текстур игрового поля и фигур
         board = IMG_LoadTexture(ren, board_path.c_str());
         w_piece = IMG_LoadTexture(ren, piece_white_path.c_str());
         b_piece = IMG_LoadTexture(ren, piece_black_path.c_str());
@@ -63,17 +71,20 @@ public:
         b_queen = IMG_LoadTexture(ren, queen_black_path.c_str());
         back = IMG_LoadTexture(ren, back_path.c_str());
         replay = IMG_LoadTexture(ren, replay_path.c_str());
+        // Проверка успешной загрузки текстур
         if (!board || !w_piece || !b_piece || !w_queen || !b_queen || !back || !replay)
         {
             print_exception("IMG_LoadTexture can't load main textures from " + textures_path);
             return 1;
         }
+        // Получение размеров окна и установка начального состояния доски
         SDL_GetRendererOutputSize(ren, &W, &H);
         make_start_mtx();
         rerender();
         return 0;
     }
 
+    // Функция сброса игры
     void redraw()
     {
         game_results = -1;
@@ -84,6 +95,7 @@ public:
         clear_highlight();
     }
 
+    // Перемещение фигуры с возможностью съедания
     void move_piece(move_pos turn, const int beat_series = 0)
     {
         if (turn.xb != -1)
@@ -93,6 +105,7 @@ public:
         move_piece(turn.x, turn.y, turn.x2, turn.y2, beat_series);
     }
 
+    // Функция перемещения фигуры по координатам
     void move_piece(const POS_T i, const POS_T j, const POS_T i2, const POS_T j2, const int beat_series = 0)
     {
         if (mtx[i2][j2])
@@ -103,6 +116,7 @@ public:
         {
             throw runtime_error("begin position is empty, can't move");
         }
+        // Если пешка дошла до последней линии, превращаем её в дамку
         if ((mtx[i][j] == 1 && i2 == 0) || (mtx[i][j] == 2 && i2 == 7))
             mtx[i][j] += 2;
         mtx[i2][j2] = mtx[i][j];
@@ -110,12 +124,14 @@ public:
         add_history(beat_series);
     }
 
+    // Удаление фигуры с доски
     void drop_piece(const POS_T i, const POS_T j)
     {
         mtx[i][j] = 0;
         rerender();
     }
 
+    // Превращение фигуры в дамку
     void turn_into_queen(const POS_T i, const POS_T j)
     {
         if (mtx[i][j] == 0 || mtx[i][j] > 2)
@@ -130,6 +146,7 @@ public:
         return mtx;
     }
 
+    // Подсветка возможных ходов
     void highlight_cells(vector<pair<POS_T, POS_T>> cells)
     {
         for (auto pos : cells)
@@ -140,6 +157,7 @@ public:
         rerender();
     }
 
+    // Очистка подсветки
     void clear_highlight()
     {
         for (POS_T i = 0; i < 8; ++i)
@@ -168,6 +186,7 @@ public:
         return is_highlighted_[x][y];
     }
 
+    // Функция отката последнего хода
     void rollback()
     {
         auto beat_series = max(1, *(history_beat_series.rbegin()));
@@ -181,6 +200,7 @@ public:
         clear_active();
     }
 
+    // Вывод результата игры
     void show_final(const int res)
     {
         game_results = res;
@@ -194,6 +214,7 @@ public:
         rerender();
     }
 
+    // Удаление ресурсов и выход
     void quit()
     {
         SDL_DestroyTexture(board);
@@ -215,12 +236,13 @@ public:
     }
 
 private:
+    // Сохранение состояния доски в историю
     void add_history(const int beat_series = 0)
     {
         history_mtx.push_back(mtx);
         history_beat_series.push_back(beat_series);
     }
-    // function to make start matrix
+    // Установка начального состояния доски
     void make_start_mtx()
     {
         for (POS_T i = 0; i < 8; ++i)
@@ -237,7 +259,7 @@ private:
         add_history();
     }
 
-    // function that re-draw all the textures
+    // Функция записи ошибок в лог
     void rerender()
     {
         // draw board
